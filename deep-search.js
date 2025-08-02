@@ -1,29 +1,60 @@
 import { 
-    getProject, 
-    getProjectRevisions, 
-    getProjectDescendants, 
-    getProjectDetailedStats,
     getUser,
     getUserStats,
     getUserProjects,
-    getComments,
-    getAssets,
-    getProjectRevisionScreenshots,
     getUserFollowers,
     getUserFollowing,
-    getUserLikes
+    getUserLikes,
+    getProjectRevisions,
+    getProjectDescendants,
+    getProjectDetailedStats,
+    getComments,
+    getAssets
 } from './api-client.js';
 
-class DeepSearchEngine {
+class UserDeepSearchEngine {
     constructor() {
-        this.currentProject = null;
+        this.currentUser = null;
         this.currentData = null;
         this.init();
     }
 
-    init() {
+    async init() {
+        await this.loadCreatorProfile();
         this.setupEventListeners();
         this.setupTabs();
+    }
+
+    async loadCreatorProfile() {
+        try {
+            // Get the creator of the current page
+            const creator = await window.websim.getCreator();
+            if (creator) {
+                this.currentUser = creator;
+                this.renderCreatorPreview();
+            } else {
+                // Fallback to current user if creator not available
+                const user = await window.websim.getUser();
+                this.currentUser = user;
+                this.renderCreatorPreview();
+            }
+        } catch (error) {
+            console.error('Failed to load creator:', error);
+            document.getElementById('creatorPreview').innerHTML = '<p>Error loading creator profile</p>';
+        }
+    }
+
+    renderCreatorPreview() {
+        const preview = document.getElementById('creatorPreview');
+        preview.innerHTML = `
+            <div class="creator-info">
+                <img src="${this.currentUser.avatar_url}" alt="${this.currentUser.username}" class="avatar-large">
+                <div>
+                    <h3>@${this.currentUser.username}</h3>
+                    <p>Ready to analyze all projects and activity</p>
+                </div>
+            </div>
+        `;
     }
 
     setupEventListeners() {
@@ -56,9 +87,8 @@ class DeepSearchEngine {
     }
 
     async performSearch() {
-        const projectId = this.extractProjectId(document.getElementById('projectIdInput').value);
-        if (!projectId) {
-            alert('Please enter a valid project ID or URL');
+        if (!this.currentUser) {
+            alert('User profile not loaded');
             return;
         }
 
@@ -66,7 +96,7 @@ class DeepSearchEngine {
         
         try {
             const options = this.getSearchOptions();
-            const data = await this.deepSearch(projectId, options);
+            const data = await this.deepUserSearch(this.currentUser.username, options);
             this.currentData = data;
             this.displayResults(data);
         } catch (error) {
@@ -77,98 +107,117 @@ class DeepSearchEngine {
         }
     }
 
-    extractProjectId(input) {
-        // Handle various formats:
-        // - raw ID: abc123...
-        // - URL: https://websim.com/p/abc123...
-        // - URL: https://websim.com/c/def456...
-        
-        const idMatch = input.match(/[a-z0-9_-]{20}/);
-        return idMatch ? idMatch[0] : null;
-    }
-
     getSearchOptions() {
         return {
+            includeProjects: document.getElementById('includeProjects').checked,
+            includeProjectRevisions: document.getElementById('includeProjectRevisions').checked,
             includePrompts: document.getElementById('includePrompts').checked,
-            includeRevisions: document.getElementById('includeRevisions').checked,
-            includeCreator: document.getElementById('includeCreator').checked,
             includeStats: document.getElementById('includeStats').checked,
             includeAssets: document.getElementById('includeAssets').checked,
             includeComments: document.getElementById('includeComments').checked,
-            includeDescendants: document.getElementById('includeDescendants').checked,
-            includeScreenshots: document.getElementById('includeScreenshots').checked,
             includeFollowers: document.getElementById('includeFollowers').checked,
-            includeLikes: document.getElementById('includeLikes').checked
+            includeFollowing: document.getElementById('includeFollowing').checked,
+            includeLikes: document.getElementById('includeLikes').checked,
+            includeDescendants: document.getElementById('includeDescendants').checked
         };
     }
 
-    async deepSearch(projectId, options) {
-        const project = await getProject(projectId);
-        const data = { project };
+    async deepUserSearch(username, options) {
+        const data = { user: username };
 
-        // Get all revisions
-        if (options.includeRevisions) {
-            const revisions = await getProjectRevisions(projectId);
-            data.revisions = revisions;
-        }
+        // Get user profile and stats
+        const userProfile = await getUser(username);
+        const userStats = await getUserStats(username);
+        
+        data.profile = userProfile;
+        data.stats = userStats;
 
-        // Get latest revision for additional data
-        const latestRevision = await getProject(projectId, { include: ['members', 'permissions'] });
+        // Get all projects
+        if (options.includeProjects) {
+            const projects = await getUserProjects(username, { 
+                first: 100,
+                sort_by: 'updated_at'
+            });
+            data.projects = projects;
 
-        // Get prompt history
-        if (options.includePrompts && latestRevision.site) {
-            const site = latestRevision.site;
-            data.prompts = this.extractPromptHistory(site);
-        }
+            // Get detailed info for each project
+            if (projects.data.length > 0) {
+                const detailedProjects = await Promise.all(
+                    projects.data.map(async (project) => {
+                        const projectData = { project: project.project };
+                        
+                        // Get revisions for each project
+                        if (options.includeProjectRevisions) {
+                            const revisions = await getProjectRevisions(project.project.id);
+                            projectData.revisions = revisions;
+                        }
 
-        // Get creator details
-        if (options.includeCreator) {
-            const creator = await getUser(project.created_by.username);
-            const creatorStats = await getUserStats(project.created_by.username);
-            const creatorProjects = await getUserProjects(project.created_by.username);
-            
-            data.creator = {
-                ...creator,
-                stats: creatorStats,
-                projects: creatorProjects
-            };
+                        // Get prompt history
+                        if (options.includePrompts && project.site) {
+                            projectData.prompts = this.extractPromptHistory(project.site);
+                        }
 
-            if (options.includeFollowers) {
-                data.creator.followers = await getUserFollowers(project.created_by.username);
-                data.creator.following = await getUserFollowing(project.created_by.username);
+                        // Get stats
+                        if (options.includeStats) {
+                            try {
+                                const stats = await getProjectDetailedStats(project.project.id);
+                                projectData.stats = stats;
+                            } catch (e) {
+                                projectData.stats = null;
+                            }
+                        }
+
+                        // Get assets
+                        if (options.includeAssets && project.project_revision) {
+                            try {
+                                const assets = await getAssets(project.project.id, project.project_revision.version);
+                                projectData.assets = assets;
+                            } catch (e) {
+                                projectData.assets = null;
+                            }
+                        }
+
+                        // Get comments
+                        if (options.includeComments) {
+                            try {
+                                const comments = await getComments(project.project.id);
+                                projectData.comments = comments;
+                            } catch (e) {
+                                projectData.comments = null;
+                            }
+                        }
+
+                        // Get descendants
+                        if (options.includeDescendants) {
+                            try {
+                                const descendants = await getProjectDescendants(project.project.id);
+                                projectData.descendants = descendants;
+                            } catch (e) {
+                                projectData.descendants = null;
+                            }
+                        }
+
+                        return projectData;
+                    })
+                );
+                data.detailedProjects = detailedProjects;
             }
         }
 
-        // Get project stats
-        if (options.includeStats) {
-            data.stats = await getProjectDetailedStats(projectId);
+        // Get social data
+        if (options.includeFollowers) {
+            const followers = await getUserFollowers(username);
+            data.followers = followers;
         }
 
-        // Get assets
-        if (options.includeAssets && latestRevision.project_revision) {
-            const assets = await getAssets(projectId, latestRevision.project_revision.version);
-            data.assets = assets;
+        if (options.includeFollowing) {
+            const following = await getUserFollowing(username);
+            data.following = following;
         }
 
-        // Get comments
-        if (options.includeComments) {
-            const comments = await getComments(projectId);
-            data.comments = comments;
-        }
-
-        // Get screenshots
-        if (options.includeScreenshots && latestRevision.project_revision) {
-            const screenshots = await getProjectRevisionScreenshots(
-                projectId, 
-                latestRevision.project_revision.version
-            );
-            data.screenshots = screenshots;
-        }
-
-        // Get descendants
-        if (options.includeDescendants) {
-            const descendants = await getProjectDescendants(projectId);
-            data.descendants = descendants;
+        if (options.includeLikes) {
+            const likes = await getUserLikes(username);
+            data.likes = likes;
         }
 
         return data;
@@ -219,190 +268,294 @@ class DeepSearchEngine {
             case 'overview':
                 content.innerHTML = this.renderOverview();
                 break;
+            case 'projects':
+                content.innerHTML = this.renderProjects();
+                break;
             case 'prompts':
-                content.innerHTML = this.renderPrompts();
+                content.innerHTML = this.renderAllPrompts();
                 break;
             case 'versions':
-                content.innerHTML = this.renderVersions();
-                break;
-            case 'creator':
-                content.innerHTML = this.renderCreator();
-                break;
-            case 'assets':
-                content.innerHTML = this.renderAssets();
+                content.innerHTML = this.renderAllVersions();
                 break;
             case 'stats':
-                content.innerHTML = this.renderStats();
+                content.innerHTML = this.renderAllStats();
+                break;
+            case 'assets':
+                content.innerHTML = this.renderAllAssets();
                 break;
             case 'comments':
-                content.innerHTML = this.renderComments();
+                content.innerHTML = this.renderAllComments();
+                break;
+            case 'network':
+                content.innerHTML = this.renderNetwork();
                 break;
         }
     }
 
     renderOverview() {
-        const { project, creator } = this.currentData;
+        const { profile, stats, projects, followers, following, likes } = this.currentData;
         
         return `
             <div class="overview-grid">
                 <div class="info-card">
-                    <h3>Project Details</h3>
-                    <p><strong>Title:</strong> ${project.title || 'Untitled'}</p>
-                    <p><strong>ID:</strong> ${project.id}</p>
-                    <p><strong>Visibility:</strong> ${project.visibility}</p>
-                    <p><strong>Created:</strong> ${new Date(project.created_at).toLocaleDateString()}</p>
-                    <p><strong>Updated:</strong> ${new Date(project.updated_at).toLocaleDateString()}</p>
-                    <p><strong>Current Version:</strong> ${project.current_version || 'N/A'}</p>
+                    <h3>Creator Profile</h3>
+                    <div class="creator-info">
+                        <img src="${profile.avatar_url}" alt="${profile.username}" class="avatar-large">
+                        <div>
+                            <h4>@${profile.username}</h4>
+                            <p>Joined: ${new Date(profile.created_at).toLocaleDateString()}</p>
+                            <p>Discord: ${profile.discord_username || 'Not linked'}</p>
+                        </div>
+                    </div>
                 </div>
                 
                 <div class="info-card">
-                    <h3>Creator</h3>
-                    <div class="creator-info">
-                        <img src="${creator.user.avatar_url}" alt="${creator.user.username}" class="avatar">
-                        <div>
-                            <p><strong>@${creator.user.username}</strong></p>
-                            <p>Projects: ${creator.projects.data.length}</p>
-                            <p>Followers: ${creator.followers?.data?.length || 0}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    renderPrompts() {
-        const { prompts } = this.currentData;
-        
-        return `
-            <div class="prompts-list">
-                <h3>Prompt History</h3>
-                ${prompts.map((prompt, index) => `
-                    <div class="prompt-card">
-                        <div class="prompt-header">
-                            <span class="prompt-number">#${prompts.length - index}</span>
-                            <span class="prompt-date">${new Date(prompt.created_at).toLocaleString()}</span>
-                        </div>
-                        <div class="prompt-content">
-                            ${prompt.prompt.text || prompt.prompt}
-                        </div>
-                        <div class="prompt-meta">
-                            Model: ${prompt.model} | State: ${prompt.state}
-                        </div>
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    renderVersions() {
-        const { revisions } = this.currentData;
-        
-        return `
-            <div class="versions-list">
-                <h3>Version History</h3>
-                ${revisions.data.map(rev => `
-                    <div class="version-card">
-                        <div class="version-header">
-                            <span class="version-number">v${rev.project_revision.version}</span>
-                            <span class="version-date">${new Date(rev.project_revision.created_at).toLocaleDateString()}</span>
-                        </div>
-                        <p>Created by: @${rev.project_revision.created_by.username}</p>
-                        ${rev.site ? `<p>Prompt: ${rev.site.prompt.text || 'N/A'}</p>` : ''}
-                    </div>
-                `).join('')}
-            </div>
-        `;
-    }
-
-    renderCreator() {
-        const { creator } = this.currentData;
-        
-        return `
-            <div class="creator-profile">
-                <h3>Creator Profile</h3>
-                <div class="profile-card">
-                    <img src="${creator.user.avatar_url}" alt="${creator.user.username}" class="avatar-large">
-                    <h4>@${creator.user.username}</h4>
-                    <p>Joined: ${new Date(creator.user.created_at).toLocaleDateString()}</p>
-                    
+                    <h3>Overall Statistics</h3>
                     <div class="stats-grid">
-                        <div class="stat">
-                            <strong>${creator.projects.data.length}</strong>
-                            <span>Projects</span>
+                        <div class="stat-card">
+                            <span class="stat-number">${projects.data.length}</span>
+                            <span>Total Projects</span>
                         </div>
-                        <div class="stat">
-                            <strong>${creator.stats.stats.total_likes}</strong>
+                        <div class="stat-card">
+                            <span class="stat-number">${stats.stats.total_likes}</span>
                             <span>Total Likes</span>
                         </div>
-                        <div class="stat">
-                            <strong>${creator.stats.stats.total_views}</strong>
+                        <div class="stat-card">
+                            <span class="stat-number">${stats.stats.total_views}</span>
                             <span>Total Views</span>
                         </div>
+                        <div class="stat-card">
+                            <span class="stat-number">${followers?.data?.length || 0}</span>
+                            <span>Followers</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-number">${following?.data?.length || 0}</span>
+                            <span>Following</span>
+                        </div>
+                        <div class="stat-card">
+                            <span class="stat-number">${likes?.data?.length || 0}</span>
+                            <span>Liked Projects</span>
+                        </div>
                     </div>
                 </div>
             </div>
         `;
     }
 
-    renderAssets() {
-        const { assets } = this.currentData;
+    renderProjects() {
+        const { detailedProjects } = this.currentData;
         
         return `
-            <div class="assets-grid">
-                <h3>Project Assets</h3>
-                ${assets.assets.map(asset => `
-                    <div class="asset-card">
-                        <img src="${asset.asset_url}" alt="${asset.filename}" class="asset-thumbnail">
-                        <p>${asset.filename}</p>
-                        <small>${asset.content_type}</small>
+            <div class="projects-list">
+                <h3>All Projects (${detailedProjects.length})</h3>
+                ${detailedProjects.map((item, index) => `
+                    <div class="project-card">
+                        <div class="project-header">
+                            <h4>${item.project.title || 'Untitled Project'}</h4>
+                            <span class="project-id">${item.project.id}</span>
+                        </div>
+                        <div class="project-meta">
+                            <p>Views: ${item.project.stats.views} | Likes: ${item.project.stats.likes} | Comments: ${item.project.stats.comments}</p>
+                            <p>Created: ${new Date(item.project.created_at).toLocaleDateString()}</p>
+                            <p>Versions: ${item.project.current_version || 0}</p>
+                            ${item.descendants ? `<p>Descendants: ${item.descendants.data.length}</p>` : ''}
+                        </div>
                     </div>
                 `).join('')}
             </div>
         `;
     }
 
-    renderStats() {
-        const { stats } = this.currentData;
+    renderAllPrompts() {
+        const { detailedProjects } = this.currentData;
         
         return `
-            <div class="stats-section">
-                <h3>Usage Statistics</h3>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <h4>Total Views</h4>
-                        <span class="stat-number">${stats.views || 0}</span>
+            <div class="all-prompts">
+                <h3>All Prompts Across Projects</h3>
+                ${detailedProjects.map(item => `
+                    <div class="project-prompts">
+                        <h4>${item.project.title || item.project.id}</h4>
+                        ${item.prompts ? item.prompts.map((prompt, index) => `
+                            <div class="prompt-card">
+                                <div class="prompt-header">
+                                    <span class="prompt-number">#${item.prompts.length - index}</span>
+                                    <span class="prompt-date">${new Date(prompt.created_at).toLocaleString()}</span>
+                                </div>
+                                <div class="prompt-content">
+                                    ${prompt.prompt.text || prompt.prompt}
+                                </div>
+                                <div class="prompt-meta">
+                                    Model: ${prompt.model} | State: ${prompt.state}
+                                </div>
+                            </div>
+                        `).join('') : '<p>No prompts found</p>'}
                     </div>
-                    <div class="stat-card">
-                        <h4>Total Tips</h4>
-                        <span class="stat-number">${stats.total_tip_amount || 0}</span>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderAllVersions() {
+        const { detailedProjects } = this.currentData;
+        
+        return `
+            <div class="all-versions">
+                <h3>All Project Versions</h3>
+                ${detailedProjects.map(item => `
+                    <div class="project-versions">
+                        <h4>${item.project.title || item.project.id}</h4>
+                        ${item.revisions ? item.revisions.data.map(rev => `
+                            <div class="version-card">
+                                <div class="version-header">
+                                    <span class="version-number">v${rev.project_revision.version}</span>
+                                    <span class="version-date">${new Date(rev.project_revision.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <p>Created by: @${rev.project_revision.created_by.username}</p>
+                            </div>
+                        `).join('') : '<p>No revisions found</p>'}
                     </div>
-                    <div class="stat-card">
-                        <h4>Mobile Ratio</h4>
-                        <span class="stat-number">${(stats.mobile_ratio * 100).toFixed(1)}%</span>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderAllStats() {
+        const { detailedProjects } = this.currentData;
+        
+        return `
+            <div class="all-stats">
+                <h3>Project Statistics</h3>
+                ${detailedProjects.map(item => `
+                    <div class="project-stats">
+                        <h4>${item.project.title || item.project.id}</h4>
+                        ${item.stats ? `
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <span class="stat-number">${item.stats.views || 0}</span>
+                                    <span>Views</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="stat-number">${item.stats.total_tip_amount || 0}</span>
+                                    <span>Total Tips</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="stat-number">${(item.stats.mobile_ratio * 100).toFixed(1)}%</span>
+                                    <span>Mobile Ratio</span>
+                                </div>
+                            </div>
+                        ` : '<p>No stats available</p>'}
                     </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderAllAssets() {
+        const { detailedProjects } = this.currentData;
+        
+        return `
+            <div class="all-assets">
+                <h3>All Assets Across Projects</h3>
+                ${detailedProjects.map(item => `
+                    <div class="project-assets">
+                        <h4>${item.project.title || item.project.id}</h4>
+                        ${item.assets ? `
+                            <div class="assets-grid">
+                                ${item.assets.assets.map(asset => `
+                                    <div class="asset-card">
+                                        <img src="${asset.asset_url}" alt="${asset.filename}" class="asset-thumbnail">
+                                        <p>${asset.filename}</p>
+                                        <small>${asset.content_type}</small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p>No assets found</p>'}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderAllComments() {
+        const { detailedProjects } = this.currentData;
+        
+        return `
+            <div class="all-comments">
+                <h3>All Comments Across Projects</h3>
+                ${detailedProjects.map(item => `
+                    <div class="project-comments">
+                        <h4>${item.project.title || item.project.id}</h4>
+                        ${item.comments ? `
+                            <div class="comments-section">
+                                ${item.comments.comments.data.map(comment => `
+                                    <div class="comment-card">
+                                        <div class="comment-header">
+                                            <img src="${comment.comment.author.avatar_url}" alt="${comment.comment.author.username}" class="avatar-small">
+                                            <span>@${comment.comment.author.username}</span>
+                                            <span class="comment-date">${new Date(comment.comment.created_at).toLocaleDateString()}</span>
+                                        </div>
+                                        <div class="comment-content">
+                                            ${comment.comment.content}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p>No comments found</p>'}
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    renderNetwork() {
+        const { followers, following, likes } = this.currentData;
+        
+        return `
+            <div class="network-analysis">
+                <h3>Creator Network</h3>
+                
+                <div class="network-section">
+                    <h4>Followers (${followers?.data?.length || 0})</h4>
+                    ${followers ? `
+                        <div class="network-grid">
+                            ${followers.data.map(item => `
+                                <div class="network-user">
+                                    <img src="${item.follow.user.avatar_url}" alt="${item.follow.user.username}" class="avatar">
+                                    <span>@${item.follow.user.username}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : '<p>No followers found</p>'}
                 </div>
-            </div>
-        `;
-    }
 
-    renderComments() {
-        const { comments } = this.currentData;
-        
-        return `
-            <div class="comments-section">
-                <h3>Project Comments</h3>
-                ${comments.comments.data.map(comment => `
-                    <div class="comment-card">
-                        <div class="comment-header">
-                            <img src="${comment.comment.author.avatar_url}" alt="${comment.comment.author.username}" class="avatar-small">
-                            <span>@${comment.comment.author.username}</span>
-                            <span class="comment-date">${new Date(comment.comment.created_at).toLocaleDateString()}</span>
+                <div class="network-section">
+                    <h4>Following (${following?.data?.length || 0})</h4>
+                    ${following ? `
+                        <div class="network-grid">
+                            ${following.data.map(item => `
+                                <div class="network-user">
+                                    <img src="${item.follow.user.avatar_url}" alt="${item.follow.user.username}" class="avatar">
+                                    <span>@${item.follow.user.username}</span>
+                                </div>
+                            `).join('')}
                         </div>
-                        <div class="comment-content">
-                            ${comment.comment.content}
+                    ` : '<p>Not following anyone</p>'}
+                </div>
+
+                <div class="network-section">
+                    <h4>Liked Projects (${likes?.data?.length || 0})</h4>
+                    ${likes ? `
+                        <div class="network-grid">
+                            ${likes.data.map(item => `
+                                <div class="liked-project">
+                                    <a href="https://websim.com/p/${item.like.site.project_id}" target="_blank">
+                                        ${item.site.title || 'Untitled Project'}
+                                    </a>
+                                </div>
+                            `).join('')}
                         </div>
-                    </div>
-                `).join('')}
+                    ` : '<p>No liked projects</p>'}
+                </div>
             </div>
         `;
     }
@@ -410,6 +563,5 @@ class DeepSearchEngine {
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', () => {
-    new DeepSearchEngine();
+    new UserDeepSearchEngine();
 });
-

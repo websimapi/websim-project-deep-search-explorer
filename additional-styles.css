@@ -146,6 +146,104 @@
     border-radius: 12px;
 }
 
+/* Additional styles for the user deep search */
+.creator-preview {
+    text-align: center;
+    padding: 2rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.creator-preview .creator-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.creator-preview .avatar-large {
+    width: 60px;
+    height: 60px;
+}
+
+.projects-list .project-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.project-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.project-id {
+    font-family: monospace;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.project-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.project-prompts,
+.project-versions,
+.project-stats,
+.project-assets,
+.project-comments {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.network-analysis {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.network-section {
+    background: var(--bg-tertiary);
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.network-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.network-user,
+.liked-project {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.liked-project a {
+    color: var(--accent-primary);
+    text-decoration: none;
+}
+
+.liked-project a:hover {
+    text-decoration: underline;
+}
+
 @media (max-width: 768px) {
     .overview-grid {
         grid-template-columns: 1fr;
@@ -155,4 +253,3 @@
         grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     }
 }
-
