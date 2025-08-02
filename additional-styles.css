@@ -1,0 +1,158 @@
+/* Additional styles for specific components */
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 2rem;
+}
+
+.info-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.creator-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.avatar-small {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.prompts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.prompt-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.prompt-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.prompt-number {
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+}
+
+.prompt-content {
+    background: var(--bg-primary);
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+    font-family: monospace;
+    white-space: pre-wrap;
+}
+
+.versions-list,
+.comments-section,
+.assets-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.version-card,
+.comment-card,
+.asset-card {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--accent-primary);
+}
+
+.assets-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.asset-thumbnail {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.comment-date {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.profile-card {
+    text-align: center;
+    padding: 2rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .assets-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+}
+

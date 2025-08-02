@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Deep Search Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-microscope"></i> Project Deep Search</h1>
+                <p class="subtitle">Advanced project analysis and exploration</p>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <!-- Search Section -->
+            <section class="search-section">
+                <div class="search-card">
+                    <div class="search-input-container">
+                        <input type="text" id="projectIdInput" placeholder="Enter Project ID or URL..." />
+                        <button id="searchBtn" class="search-btn">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="search-options">
+                        <div class="option-group">
+                            <label>
+                                <input type="checkbox" id="includePrompts" checked>
+                                <span>Prompt History</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeRevisions" checked>
+                                <span>Version History</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeCreator" checked>
+                                <span>Creator Details</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeStats" checked>
+                                <span>Usage Stats</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeAssets" checked>
+                                <span>Assets & Files</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeComments" checked>
+                                <span>Comments & Reactions</span>
+                            </label>
+                        </div>
+                        
+                        <button id="advancedToggle" class="btn-secondary">
+                            <i class="fas fa-cog"></i> Advanced Options
+                        </button>
+                    </div>
+
+                    <div id="advancedOptions" class="advanced-options hidden">
+                        <div class="option-grid">
+                            <label>
+                                <input type="checkbox" id="includeDescendants">
+                                <span>Descendant Projects</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeScreenshots">
+                                <span>Screenshots</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeFollowers">
+                                <span>Creator Followers</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="includeLikes">
+                                <span>Project Likes</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Loading -->
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Deep searching project...</p>
+            </div>
+
+            <!-- Results -->
+            <section id="results" class="results-section hidden">
+                <div class="results-header">
+                    <h2>Project Analysis</h2>
+                    <button id="exportBtn" class="btn-primary">
+                        <i class="fas fa-download"></i> Export Data
+                    </button>
+                </div>
+                
+                <div class="results-grid">
+                    <div class="sidebar">
+                        <nav class="nav-tabs">
+                            <button class="nav-tab active" data-tab="overview">Overview</button>
+                            <button class="nav-tab" data-tab="prompts">Prompts</button>
+                            <button class="nav-tab" data-tab="versions">Versions</button>
+                            <button class="nav-tab" data-tab="creator">Creator</button>
+                            <button class="nav-tab" data-tab="assets">Assets</button>
+                            <button class="nav-tab" data-tab="stats">Stats</button>
+                            <button class="nav-tab" data-tab="comments">Comments</button>
+                        </nav>
+                    </div>
+                    
+                    <div class="main-panel">
+                        <div id="tab-content" class="tab-content">
+                            <!-- Content dynamically loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script type="module" src="deep-search.js"></script>
+<script defer src="https://static.cloudflareinsights.com/beacon.min.js/v8c78df7c7c0f484497ecbca7046644da1771523124516" integrity="sha512-8DS7rgIrAmghBFwoOTujcf6D9rXvH8xm8JQ1Ja01h9QX8EzXldiszufYa4IFfKdLUKTTrnSFXLDkUEOTrZQ8Qg==" data-cf-beacon='{"version":"2024.11.0","token":"4c6229722a6346bc8eb5cb0e5eae5d41","server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>
+
